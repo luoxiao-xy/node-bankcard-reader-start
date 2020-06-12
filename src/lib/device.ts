@@ -79,7 +79,7 @@ export function readMC(device: Device): string {
     info('starting reading 磁条卡 ...')
   }
 
-  const code = device.apib.star_ReadMagCardNo(23, 0, szCardNo, iCardNoLen , 10)
+  const code = device.apib.star_ReadMagCardNo(23, 0, szCardNo, iCardNoLen , 5)
 
   let cardno = ''
   if (code === 0) {
