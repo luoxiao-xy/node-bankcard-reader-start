@@ -5,23 +5,19 @@ import {
 } from '@waiting/bankcard-reader-base'
 import { info } from '@waiting/log'
 import {
-  validateDllFile,
+  setPathDirectory, validateDllFile,
 } from '@waiting/shared-core'
 import * as ffi from 'ffi'
-import {
-  of,
-} from 'rxjs'
 
 import {
   dllFuncs,
 } from './config'
-import { disconnectDevice, findDeviceList, readAll } from './device'
+import { findDeviceList, readFJ, readJC } from './device'
 import { Device } from './model'
 
 
 export async function init(options: Options): Promise<Device[]> {
   const deviceOpts = parseDeviceOpts(options)
-
   const { debug } = deviceOpts
 
   if (debug) {
@@ -29,6 +25,9 @@ export async function init(options: Options): Promise<Device[]> {
   }
 
   await validateDllFile(deviceOpts.dllTxt)
+  if (deviceOpts.dllSearchPath) {
+    setPathDirectory(deviceOpts.dllSearchPath)
+  }
   const apib = ffi.Library(deviceOpts.dllTxt, dllFuncs)
   const devices = findDeviceList(deviceOpts, apib)
 
@@ -43,18 +42,31 @@ export async function init(options: Options): Promise<Device[]> {
 
 /** Read card data */
 export function read(device: Device): Promise<BankCardData> {
-  if (device.openPort) {
-    try {
-      disconnectDevice(device)
-    }
-    catch (ex) {
-      throw ex
-    }
+  const ret: BankCardData = {
+    cardno: '',
+  }
 
-    const ret$ = of(readAll(device))
-    return ret$.toPromise()
+  try {
+    switch (device.deviceOpts.cardType) {
+      case 'fj':
+        ret.cardno = readFJ(device)
+        break
+
+      case 'jc':
+        ret.cardno = readJC(device)
+        break
+
+      case 'auto':
+        ret.cardno = readFJ(device) || readJC(device) || ''
+        break
+
+      default:
+        throw new Error('cardType invalid, Should be auto|fj|jc ')
+    }
   }
-  else {
-    throw new Error('设备端口未指定')
+  catch {
+    ret.cardno = ''
   }
+
+  return Promise.resolve(ret)
 }

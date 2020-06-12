@@ -16,43 +16,16 @@ export {
   Options,
 }
 
-/* sdtapi.dll 接口方法类型 */
+
+/** dll接口方法 */
 export interface DllFuncsModel extends FM.DllFuncsModel {
-  /** 查找设备并打开端口 0 成功 */
-  OpenComPort(port: M.INT32, gate: M.POINT, baud: M.INT32, timeout: M.INT32): M.INT32
-  CloseComPort(): M.INT32
-  /** 检查端口是否已打开1， 0未打开 */
-  IsComOpen(): M.INT32
+  JC_GetBankNumber(bankNum: M.POINT): M.INT // 接触获取银行卡卡号
+  FJ_GetBankNumber(bankNum: M.POINT): M.INT // 非接获取银行卡卡号
+}
 
-  /**
-   * 获取银行磁卡号，自动.
-   * 执行结果0 成功
-   *
-   */
-  GetCardNumberFromDev(
-    /** 串口号 */
-    port: M.INT32,
-    /** 扩展口 */
-    gate: M.POINT,
-    /** 超时时间 (主要为磁卡的超时时间) */
-    timeout: M.INT32,
-    /** 获取到的卡号 */
-    cardBuff: M.POINT,
-  ): M.INT32
-
-  /**
-   * 获取IC卡信息
-   * 获取信息的来源 (前面的模块获取不到则往后递推尝试获取)2非接，1接触，0磁卡 '2121021' ''则默认为'210'
-   *
-   * 工作不正常
-   */
-  // GetCardInfoFromDev(
-  //   selectType: Buffer,
-  //   port: number,
-  //   gate: Buffer,
-  //   timeout: number,
-  //   cardBuff: Buffer,
-  // ): void
+export interface Kernel32Model extends FM.DllFuncsModel {
+  SetDllDirectoryW(lpPathName: M.LPCTSTR): M.BOOLEAN
+  GetDllDirectoryW(nBufferLength: M.DWORD, lpBuffer: M.LPTSTR): M.DWORD
 }
 
 /** 读卡设置 */

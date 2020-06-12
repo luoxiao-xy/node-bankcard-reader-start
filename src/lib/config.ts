@@ -17,10 +17,8 @@ export const config: Config = {
 }
 
 export const dllFuncs: FM.DllFuncs = {
-  OpenComPort: [W.INT, [W.INT, W.POINT, W.INT, W.INT] ],   // 查找设备端口
-  CloseComPort: [W.INT, [] ],
-  IsComOpen: [W.INT, [] ],
-  GetCardNumberFromDev: [W.INT, [W.INT, W.POINT, W.INT, W.POINT] ],
-  // ICCard_GetCardNumber: [W.INT, [W.INT, W.POINT, W.INT, W.INT, W.POINT] ],
-  // GetCardInfoFromDev: [W.VOID, [W.POINT, W.INT, W.POINT, W.INT, W.POINT] ],
+  star_InitConnect: [W.INT, [W.INT, W.INT, W.CHAR, W.CHAR, W.INT] ],   // 初始化设备
+  star_Open: [W.INT, [W.INT, W.INT, W.CHAR] ], // 初始化设备打开端口
+  star_Close: [W.INT, [] ], // 关闭端口
+  star_ICPowerOn: [W.INT, [W.INT, W.PSTR, W.PINT, W.PINT, W.INT] ], // IC卡上电读取
 }

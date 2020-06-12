@@ -1,10 +1,11 @@
 /// <reference types="mocha" />
 
+import { join } from '@waiting/shared-core'
 import { basename } from 'path'
 import * as assert from 'power-assert'
 
-import * as bcr from '../src/index'
-import { BankCardData, Options } from '../src/lib/model'
+import * as bcr from '../src/lib/index'
+import { Options } from '../src/lib/model'
 
 
 const filename = basename(__filename)
@@ -12,23 +13,22 @@ const filename = basename(__filename)
 describe(filename, () => {
 
   it('Should read() works', async () => {
+    const dll = join(__dirname, '../dll/starInbar.dll')
+    const dllSearchPath = join(__dirname, '../dll')
     const opts: Options = {
-      dllTxt: 'd:/idcard-drv/MantianRead.dll',
+      cardType: 'auto',
       debug: false,
+      dllTxt: dll,
+      dllSearchPath,
     }
 
     try {
       const devices = await bcr.init(opts)
-
-      if (! devices.length) {
-        assert(false, 'No device found')
-        return
-      }
-      const ret: BankCardData = await bcr.read(devices[0])
+      const ret = await bcr.read(devices[0])
 
       console.info(ret)
-      assert(!! ret, 'Result Data invalid')
-      assert(ret && ret.cardno, 'cardno of BankCardData empty')
+      assert(!! ret, 'IDData invalid')
+      assert(ret && ret.cardno, 'card number invalid')
     }
     catch (ex) {
       assert(false, ex)

@@ -10,6 +10,8 @@
     "bankcard",
     "bankcard-reader",
     "iccard",
+     "银行卡",
+    "非接触",
     "IC 银行卡"
   ],
   "engines": {
@@ -55,11 +57,12 @@
     "@waiting/log": "^1.0.1",
     "@waiting/shared-core": "^1.7.0",
     "ffi": "^2.3.0",
-    "rollup": "^2.15.0",
     "rxjs": "^6.4.0",
-    "typescript": "^3.9.5",
     "win32-def": "^3.2.0"
   },
+  "os": [
+    "win32"
+  ],
   "devDependencies": {
     "@types/mocha": "*",
     "@types/node": "*",
