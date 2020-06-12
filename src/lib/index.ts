@@ -12,7 +12,7 @@ import * as ffi from 'ffi'
 import {
   dllFuncs,
 } from './config'
-import { findDeviceList, readFJ, readJC } from './device'
+import { disconnectDevice, findDeviceList, readIC, readMC } from './device'
 import { Device } from './model'
 
 
@@ -47,25 +47,17 @@ export function read(device: Device): Promise<BankCardData> {
   }
 
   try {
-    switch (device.deviceOpts.cardType) {
-      case 'fj':
-        ret.cardno = readFJ(device)
-        break
-
-      case 'jc':
-        ret.cardno = readJC(device)
-        break
-
-      case 'auto':
-        ret.cardno = readFJ(device) || readJC(device) || ''
-        break
-
-      default:
-        throw new Error('cardType invalid, Should be auto|fj|jc ')
-    }
+    ret.cardno = readIC(device) || readMC(device) || ''
   }
-  catch {
+  catch (err) {
     ret.cardno = ''
+  }
+
+  try {
+    disconnectDevice(device)
+  }
+  catch (ex) {
+    throw ex
   }
 
   return Promise.resolve(ret)

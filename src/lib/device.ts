@@ -1,71 +1,51 @@
-import {
-  BankCardData,
-} from '@waiting/bankcard-reader-base'
 import { info } from '@waiting/log'
-import { dirname, setPathDirectory } from '@waiting/shared-core'
 
 import {
   Device,
 } from './model'
 
 
-export function connectDevice(device: Device, port: number): number {
+export function connectDevice(device: Device): boolean {
   if (device && device.inUse) {
     device.deviceOpts.debug && info('Cautiton: connectDevice() device in use')
-    return 0
+    return false
   }
-  const openRet = device.apib.OpenComPort(port, Buffer.from(''), 9600, 1)
+  const openRet = device.apib.star_Open(0, 9600, '0')
   device.deviceOpts.debug && info(`open com ret: ${openRet}`)
 
-  return openRet === 0 ? port : 0
+  return openRet === 0 ? true : false
 }
 
 export function disconnectDevice(device: Device): boolean {
-  const ret = device.apib.CloseComPort()
-  device.deviceOpts.debug && info(`disconnectDevice at port: ${device.openPort}, ret: ${ret} `)
+  const closeRet = device.apib.star_Close()
+  device.deviceOpts.debug && info(`disconnectDevice at port: ${device.openPort}, ret: ${closeRet} `)
   device.inUse = false
-  return true
+  return closeRet === 0 ? true : false
 }
 
 
 /** 检查端口是否已打开 */
 export function isDevicePortOpen(device: Device): boolean {
-  const ret = device.apib.IsComOpen()
+  const szDevInfo = Buffer.alloc(64)
+  const iInfoLen = Buffer.alloc(64)
+  const ret = device.apib.star_GetDevInfo(szDevInfo, iInfoLen) // 使用获取设备信息接口来检查是否连接成功
   device.deviceOpts.debug && info(`isPortOpen: ${ret}`)
-  return ret === 1 ? true : false
+  info(`设备信息: ${szDevInfo}`)
+  info(`设备信息长度: ${iInfoLen}`)
+  return ret === 0 ? true : false
 }
 
 
-export function findDeviceList(
-  deviceOpts: Device['deviceOpts'],
-  apib: Device['apib'],
-): Device[] {
+export function findDeviceList(deviceOpts: Device['deviceOpts'], apib: Device['apib']): Device[] {
   const arr: Device[] = []
 
-  // 指定了端口
-  if (deviceOpts.port > 0) {
-    const device = findDevice(deviceOpts.port, deviceOpts, apib)
-
-    if (device.openPort > 0) {
-      arr.push(device)
-    }
-  }
-  else {
-    // 检测串口. bp8903 为串口接口
-    for (let i = 1; i <= 16; i++) {
-      const device = findDevice(i, deviceOpts, apib)
-
-      if (device.openPort > 0) {
-        arr.push(device)
-      }
-    }
-  }
-
+  const device = findDevice(deviceOpts, apib)
+  arr.push(device)
   return arr
 }
 
+
 export function findDevice(
-  openPort: Device['openPort'],
   deviceOpts: Device['deviceOpts'],
   apib: Device['apib'],
 ): Device {
@@ -77,11 +57,11 @@ export function findDevice(
     openPort: 0,
   }
 
-  const port = connectDevice(device, openPort)
-  if (port > 0 && isDevicePortOpen(device)) {
+  const openRet = connectDevice(device)
+  if (openRet && ! isDevicePortOpen(device)) {
     device.inUse = true
-    device.openPort = port
-    deviceOpts.debug && info(`Found device at serial/usb port: ${port}`)
+    device.openPort = 0
+    deviceOpts.debug && info(`Found device at serial/usb port: ${0}`)
     disconnectDevice(device)
   }
 
@@ -89,30 +69,53 @@ export function findDevice(
 }
 
 
-/** 读取银行卡 支持 接触、非接触、磁条 */
-export function readAll(device: Device): BankCardData {
-  setPathDirectory(dirname(device.deviceOpts.dllTxt))
 
-  const buf = Buffer.alloc(64)
+/** 读取银行卡  磁条卡  */
+export function readMC(device: Device): string {
+  const szCardNo = Buffer.alloc(64)
+  const iCardNoLen = Buffer.alloc(64)
 
   if (device.deviceOpts.debug) {
-    info('starting reading...')
-  }
-  const ret: BankCardData = {
-    cardno: '',
+    info('starting reading 磁条卡 ...')
   }
 
-  const code = device.apib.GetCardNumberFromDev(
-    device.openPort,
-    // Buffer.from('124|A'),
-    Buffer.from(''),
-    3,
-    buf,
-  )
+  const code = device.apib.star_ReadMagCardNo(23, 0, szCardNo, iCardNoLen , 10)
 
+  let cardno = ''
   if (code === 0) {
     // 卡号可能重复数字  ...1234557\u0000557
-    ret.cardno = buf.toString().replace(/\0+.*$/, '')
+    cardno = parseBuffer(szCardNo)
+
+  }
+
+  if (device.deviceOpts.debug) {
+    info(`readDataBase code: ${code}`)
+    info(`readDataBase bufLen: ${szCardNo.byteLength}`)
+    info('readDataBase buf: ')
+    info(szCardNo)
+    info(`readDataBase cardno: ${cardno}`)
+  }
+
+  return cardno
+}
+
+
+/** 读取银行卡 支持 接触、非接触 IC卡 */
+export function readIC(device: Device): string {
+  const buf = Buffer.alloc(64)
+  if (device.deviceOpts.debug) {
+    info('starting reading IC卡 ...')
+  }
+
+  const code = device.apib.star_ICGetInfo(2, Buffer.from('124|A'), buf , 1)
+
+  let cardno = ''
+  if (code === 0) {
+    // 卡号可能重复数字  ...1234557\u0000557
+    const bufstr = parseBuffer(buf)
+
+    cardno = bufstr ? bufstr.substring(4) : ''
+
   }
 
   if (device.deviceOpts.debug) {
@@ -120,9 +123,17 @@ export function readAll(device: Device): BankCardData {
     info(`readDataBase bufLen: ${buf.byteLength}`)
     info('readDataBase buf: ')
     info(buf)
-    info(`readDataBase ret: ${ret}`)
-    // info(buf.slice(80))
+    info(`readDataBase cardno: ${cardno}`)
   }
 
-  return ret
+  return cardno
 }
+
+/** 转换Buffer */
+export function parseBuffer(buf: Buffer): string {
+  const bufstr = buf.toString('utf8').trim().replace(/\0+$/g, '')
+
+  return bufstr
+
+}
+
